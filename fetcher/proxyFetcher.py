@@ -13,6 +13,7 @@
 __author__ = 'JHao'
 
 import re
+import json
 from time import sleep
 
 from util.webRequest import WebRequest
@@ -327,3 +328,35 @@ class ProxyFetcher(object):
             ips = re.findall(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}", r.text)
             for ip in ips:
                 yield ip.strip()
+
+    @staticmethod
+    def freeProxy16():
+        url = 'http://raw.staticdn.net/fate0/proxylist/master/proxy.list'
+        r = WebRequest().get(url, timeout=10)
+        ips = [item for item in r.text.split('\n')][0:-1]
+        ips = [json.loads(item, strict=False) for item in ips]
+        for ip in ips:
+            yield str(ip['host']) + str(ip['port'])
+
+    @staticmethod
+    def freeProxy17():
+        header = {
+            'Referer': 'https://ip.ihuan.me/ti.html',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36',
+            'Cookie': 'statistics=ce4e9e986b0fbc713624d54b83c36283;'
+        }
+        text = WebRequest().get('https://ip.ihuan.me/mouse.do', header=header, timeout=10).text
+        keys = re.findall(r'val\([\"\']([\w\d]{32})[\"\']\)', text)
+        if len(keys) == 0:
+            return
+        data = {
+            'num': 3000,
+            'sort': 1,
+            'key': keys[0]
+        }
+        tree = WebRequest().post('https://ip.ihuan.me/tqdl.html', header=header, timeout=10, data=data).tree
+        ips = tree.xpath('//div[@class="col-md-10"]//div[@class="panel-body"]/text()')
+        for ip in ips:
+            if not re.match(r'^\d+\.\d+\.\d+\.\d+\:\d+$', ip):
+                continue
+            yield ip
